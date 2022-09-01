@@ -1,18 +1,19 @@
 package main
 
-import "github.com/callMe-Root/unbound-control-api/internal"
+import "github.com/callMe-Root/unbound-control-api/toolbox"
+
+// import "github.com/callMe-Root/unbound-control-api/model"
 
 func main() {
 
-	app := internal.App{}
+	app := toolbox.App{}
 	app.Init()
 	app.Run(":8080")
 
 }
 
-
-
-
+// an example usage for arguments
+// https://stackoverflow.com/questions/53100425/using-curl-with-commands-in-go
 
 // api/start-updater
 // bu endpoint aslında bir bash komutu çalıştırır, yani vereceğimi url e göre farklı görevler alabilir, ama ilk olarak update işlemi için düşünüldü, bu sebeple adı updater
@@ -23,7 +24,6 @@ func main() {
 3- systemctl restart yapıcak
 4- makine adını al, tower apide api/unbound-updated/<makine adı> a gönder
 */
-
 
 // api/apply-config
 // bu aslında bir dosyası yazan endpoint, farklı bir dosyayı farklı bir path e de yazabilir ama ilk olarak config güncellemek için tasarlandığından adı apply-config
@@ -40,7 +40,6 @@ func main() {
 2- systemctl status unbound-control api
 3- systemctl status bird
 */
-
 
 // api/versioncheck
 // parametre almayacak
@@ -74,4 +73,3 @@ local_data name type
 local_data_remove name
 
 */
-
