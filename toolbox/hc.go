@@ -6,22 +6,16 @@ import (
 	"net/http"
 	"os/exec"
 
-	// "github.com/gorilla/mux"
 	"github.com/callMe-Root/unbound-control-api/model"
 )
 
 func healthcheck(w http.ResponseWriter, r *http.Request) {
 
-	//vars := mux.Vars(r)
-	//cmd := vars["cmd"]
-	//target := vars["target"]
-
-	// services := ["bird", "unbound", "unbound-control-api"]
-	hc := model.Healthcheck{}
+	hc := model.CheckCheck{}
 	birdState := exec.Command("systemctl", "status", "bird")
 	err := birdState.Run()
 	if err == nil {
-		hc.BirdState = "ok"
+		hc.HealthCheck.Bird = "ok"
 	} else {
 		log.Fatal(err)
 	}
@@ -31,14 +25,38 @@ func healthcheck(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	hc.UnboundState = "ok"
+	hc.HealthCheck.Unbound = "ok"
 
 	apiState := exec.Command("systemctl", "status", "unbound-control-api")
 	err = apiState.Run()
 	if err != nil {
 		log.Fatal(err)
 	}
-	hc.ApiState = "ok"
+	hc.HealthCheck.ControlAPI = "ok"
+
+	birdVersion := exec.Command("birdc", " show status | tail -n +2 | head -n1")
+	err = birdVersion.Run()
+	if err == nil {
+		hc.VersionCheck.Bird = "ok"
+	} else {
+		log.Fatal(err)
+	}
+
+	unboundVersion := exec.Command("unbound", "-V | head -n1")
+	err = unboundVersion.Run()
+	if err != nil {
+		log.Fatal(err)
+	}
+	hc.VersionCheck.Unbound = "ok"
+
+	configVersion := exec.Command("head", "-n1 /etc/unbound/unbound.conf")
+	err = configVersion.Run()
+	if err != nil {
+		log.Fatal(err)
+	}
+	hc.VersionCheck.Config = "ok"
+
+	hc.VersionCheck.ControlAPI = "v1.0.1"
 
 	json.NewEncoder(w).Encode(hc)
 

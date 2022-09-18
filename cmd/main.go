@@ -46,7 +46,7 @@ func main() {
 /* yapacağı işlemler:
 1- unbound -V | head -n1
 2- api versiyonu statik
-3- cat /etc/unbound/unbound.conf | head -n1
+3- head -n1 /etc/unbound/unbound.conf
 4- birdc show status | tail -n +2 | head -n1
 */
 
