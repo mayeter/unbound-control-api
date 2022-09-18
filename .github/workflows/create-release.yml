@@ -1,0 +1,79 @@
+name : Create Release
+
+on : 
+  push:
+    tags:
+      - '*'
+    branches:
+      - release-*
+    # paths:
+    #   - 'server/**'
+    #   - 'client/**'
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_new_release.outputs.upload_url }}
+    steps:
+      - name: Create Release
+        uses: actions/create-release@v1
+        id: create_new_release
+        with:
+          draft: true
+          prerelease: false
+          release_name: Version
+          tag_name: ${{ github.ref }}
+          # body_path: CHANGELOG.md
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+          
+  build-and-upload-artifact:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: macos-latest
+            ZIPCOMMAND: zip -r -X ../release.zip *
+
+          - os: ubuntu-latest
+            ZIPCOMMAND: zip -r -X ../release.zip *
+
+          - os: windows-latest
+            ZIPCOMMAND: Compress-Archive * ../release.zip
+ 
+    runs-on:  ${{ matrix.os }}
+    needs: create-release
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.18.x
+
+      - name: Build 
+        run: |
+          go build -o defaults/unbound-control-api ./cmd/main.go      
+
+      - name: Create package folder to copy release items 
+        run: | 
+          cd defaults; ${{ matrix.ZIPCOMMAND }}
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v2
+        with:
+            name: Release-demo-${{ github.run_id }}
+            path: "release.zip"
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./release.zip
+          asset_name: ${{ matrix.os }}.zip
+          asset_content_type: application/zip
