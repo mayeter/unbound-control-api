@@ -56,11 +56,11 @@ jobs:
 
       - name: Build 
         run: |
-          go build -o defaults/unbound-control-api ./cmd/main.go      
+          go build -o release-package/unbound-control-api ./cmd/main.go      
 
       - name: Create package folder to copy release items 
         run: | 
-          cd defaults; ${{ matrix.ZIPCOMMAND }}
+          cd release-package; ${{ matrix.ZIPCOMMAND }}
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v2
