@@ -6,7 +6,7 @@
 ## Here are the defaults
 Binary_File_Path="/usr/bin/unbound-control-api"
 Config_Dir="/etc/unbound-control-api/"
-Service_User="unbound_control_api"
+Service_User="unbound-control-api"
 SystemD_Path=$(pkg-config systemd --variable=systemdsystemunitdir)
 
 ## New release url should be given as parameter
@@ -19,7 +19,7 @@ function checkCurrentDir() {
     Required_Files=["api.conf","unbound-control-api.service","unbound-control-api"]
     for file in $Required_Files
     do
-      if [[ -f ./$file ]]
+      if [[ ! -f ./$file ]]
       then
         echo "Some of required files are missing. Please look it up from README.md"
         exit 10
@@ -34,33 +34,34 @@ function unzipNewRelease() {
 }
 
 function createConfigDir() {
-    if [[ -f $Binary_File_Path ]]
+    if [[ ! -f $Binary_File_Path ]]
     then
       mkdir $Config_Dir
     fi
-    cp defaults/api.conf $Config_Dir/api.conf
+    cp release-package/api.conf $Config_Dir/api.conf
     chown -R $Service_User:$Service_User $Config_Dir
     chmod -R 644 $Config_Dir
 }
 
 function createSystemdUnitFile() {
-  if [[ -f $SystemD_Path/unbound-control-api.service ]]
+  if [[ ! -f $SystemD_Path/unbound-control-api.service ]]
   then
-    cp defaults/unbound-control-api.service $SystemD_Path/unbound-control-api.service
+    cp release-package/unbound-control-api.service $SystemD_Path/unbound-control-api.service
     systemctl daemon-reload
     systemctl enable unbound-control-api
   fi
 }
 
 function copyBinaryFile() {
-    cp defaults/unbound-control-api $Binary_File_Path
+    cp release-package/unbound-control-api $Binary_File_Path
 }
 
 function killOldProcess () {
   processID=$(lsof /usr/sbin/unbound | tail -n 1 | awk '{print $2}')
   if [[ -z $processID ]]
   then
-    kill -9 "$processID"
+    systemctl stop unbound-control-api
+    #kill -9 "$processID"
   fi
 }
 
@@ -92,7 +93,7 @@ copyBinaryFile
 
 ## Lets learn about current state
 ## Is it installed before?
-if [[ -f $Binary_File_Path ]]
+if [[ ! -f $Binary_File_Path ]]
 ## It is not installed before
 then
   createConfigDir
