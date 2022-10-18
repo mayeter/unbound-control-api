@@ -34,14 +34,6 @@ func healthcheck(w http.ResponseWriter, r *http.Request) {
 	}
 	hc.HealthCheck.ControlAPI = "ok"
 
-	birdVersion := exec.Command("birdc", " show status | tail -n +2 | head -n1")
-	err = birdVersion.Run()
-	if err == nil {
-		hc.VersionCheck.Bird = "ok"
-	} else {
-		log.Fatal(err)
-	}
-
 	unboundVersion := exec.Command("unbound", "-V | head -n1")
 	err = unboundVersion.Run()
 	if err != nil {
