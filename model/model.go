@@ -22,13 +22,11 @@ type ForwardZone struct {
 type CheckCheck struct {
 	HealthCheck struct {
 		Unbound    string `json:"unbound"`
-		Bird       string `json:"bird"`
 		ControlAPI string `json:"control-api"`
 	} `json:"healthcheck"`
 	VersionCheck struct {
 		Unbound    string `json:"unbound"`
 		Config     string `json:"config"`
-		Bird       string `json:"bird"`
 		ControlAPI string `json:"control-api"`
 	} `json:"versioncheck"`
 }
