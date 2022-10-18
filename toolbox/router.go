@@ -14,14 +14,13 @@ type App struct {
 	Router *mux.Router
 }
 
-
 func (a *App) Init() {
 
 	a.Router = mux.NewRouter()
 	//a.Router.HandleFunc("/message", returnMessage).Methods("POST")
 	a.Router.HandleFunc("/api/updater", triggerUpdate).Methods("POST")
 	a.Router.HandleFunc("/api/healthcheck", healthcheck).Methods("GET")
-	a.Router.HandleFunc("/api/unbound-control/{cmd}/{target}", callUC).Methods("GET")
+	a.Router.HandleFunc("/api/unbound-control/{cmd}", callUC).Methods("GET")
 	http.Handle("/", a.Router)
 }
 
@@ -30,4 +29,3 @@ func (a *App) Run(addr string) {
 	log.Fatal(http.ListenAndServe(addr, a.Router))
 
 }
-
