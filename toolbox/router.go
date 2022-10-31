@@ -22,9 +22,9 @@ func (a *App) Init() {
 	//a.Router.HandleFunc("/message", returnMessage).Methods("POST")
 	a.Router.HandleFunc("/api/updater", triggerUpdate).Methods("POST")
 	a.Router.HandleFunc("/api/healthcheck", healthcheck).Methods("GET")
-	a.Router.HandleFunc("/api/unbound-control/{cmd}", callUC).Methods("GET")
+	a.Router.HandleFunc("/api/unbound-control/callUC/{cmd}", callUC).Methods("GET")
 
-	a.Router.HandleFunc("/api/unbound-control/lookup", maintenance).Methods("GET")
+	a.Router.HandleFunc("/api/unbound-control/lookup", lookup).Methods("GET").Queries("record_name")
 	a.Router.HandleFunc("/api/unbound-control/start", maintenance).Methods("GET")
 	a.Router.HandleFunc("/api/unbound-control/stop", maintenance).Methods("GET")
 	a.Router.HandleFunc("/api/unbound-control/restart", maintenance).Methods("GET")
