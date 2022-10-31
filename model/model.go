@@ -11,6 +11,9 @@ package model
 
 // 	"github.com/gorilla/mux"
 // )
+type WarningMessage struct {
+	Message string `json:"message"`
+}
 
 type ForwardZone struct {
 	Zone       string   `json:"zone"`
@@ -29,4 +32,8 @@ type CheckCheck struct {
 		Config     string `json:"config"`
 		ControlAPI string `json:"control-api"`
 	} `json:"versioncheck"`
+}
+
+type Lookup struct {
+	LookupServer []string `json:"server"`
 }

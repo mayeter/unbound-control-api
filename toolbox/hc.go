@@ -12,16 +12,9 @@ import (
 func healthcheck(w http.ResponseWriter, r *http.Request) {
 
 	hc := model.CheckCheck{}
-	birdState := exec.Command("systemctl", "status", "bird")
-	err := birdState.Run()
-	if err == nil {
-		hc.HealthCheck.Bird = "ok"
-	} else {
-		log.Fatal(err)
-	}
 
 	unboundState := exec.Command("systemctl", "status", "unbound")
-	err = unboundState.Run()
+	err := unboundState.Run()
 	if err != nil {
 		log.Fatal(err)
 	}
