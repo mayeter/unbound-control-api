@@ -11,6 +11,8 @@ A REST API for managing Unbound DNS resolver remotely. This project provides a s
 - Easy to deploy and configure
 - Hot-reloadable configuration
 - TLS certificate reloading
+- Zone management capabilities
+- Zone file management for authoritative DNS
 
 ## Prerequisites
 
@@ -93,11 +95,105 @@ Note: The following settings require a server restart to take effect:
 
 ## API Endpoints
 
+### Unbound Control
 - `GET /api/v1/status` - Get Unbound server status
 - `POST /api/v1/reload` - Reload Unbound configuration
 - `POST /api/v1/flush` - Flush DNS cache
 - `GET /api/v1/stats` - Get Unbound statistics
 - `GET /api/v1/info` - Get detailed server information
+
+### Zone Management
+- `GET /api/v1/zones` - List all configured zones
+- `POST /api/v1/zones` - Add a new zone
+- `GET /api/v1/zones/{name}` - Get zone details
+- `PUT /api/v1/zones/{name}` - Update zone configuration
+- `DELETE /api/v1/zones/{name}` - Remove a zone
+
+#### Zone Configuration Example
+```json
+{
+  "name": "example.com",
+  "type": "primary",
+  "file": "/etc/unbound/zones/example.com.zone"
+}
+```
+
+```json
+{
+  "name": "example.org",
+  "type": "secondary",
+  "masters": ["192.168.1.10", "192.168.1.11"]
+}
+```
+
+```json
+{
+  "name": "example.net",
+  "type": "forward",
+  "forwards": ["8.8.8.8", "8.8.4.4"]
+}
+```
+
+### Zone File Management
+- `GET /api/v1/zones/{name}/file` - Get zone file content
+- `PUT /api/v1/zones/{name}/file` - Update entire zone file
+- `POST /api/v1/zones/{name}/records` - Add a new record
+- `GET /api/v1/zones/{name}/records/{recordName}/{recordType}` - Get record details
+- `PUT /api/v1/zones/{name}/records/{recordName}/{recordType}` - Update record
+- `DELETE /api/v1/zones/{name}/records/{recordName}/{recordType}` - Remove record
+
+#### Zone File Example
+```json
+{
+  "name": "example.com",
+  "records": [
+    {
+      "name": "@",
+      "ttl": 3600,
+      "class": "IN",
+      "type": "SOA",
+      "rdata": "ns1.example.com. admin.example.com. 2024031501 7200 3600 1209600 3600",
+      "comments": "Start of Authority"
+    },
+    {
+      "name": "@",
+      "ttl": 3600,
+      "class": "IN",
+      "type": "NS",
+      "rdata": "ns1.example.com.",
+      "comments": "Primary nameserver"
+    },
+    {
+      "name": "@",
+      "ttl": 3600,
+      "class": "IN",
+      "type": "A",
+      "rdata": "192.168.1.10",
+      "comments": "Main IP address"
+    },
+    {
+      "name": "www",
+      "ttl": 3600,
+      "class": "IN",
+      "type": "CNAME",
+      "rdata": "@",
+      "comments": "WWW subdomain"
+    }
+  ]
+}
+```
+
+#### Record Example
+```json
+{
+  "name": "mail",
+  "ttl": 3600,
+  "class": "IN",
+  "type": "MX",
+  "rdata": "10 mail.example.com.",
+  "comments": "Mail server"
+}
+```
 
 ## Security
 
