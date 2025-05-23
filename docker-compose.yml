@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  unbound:
+    image: mvance/unbound:latest
+    container_name: unbound
+    volumes:
+      - unbound-certs:/opt/unbound/etc/unbound
+    ports:
+      - "53:53/udp"
+      - "53:53/tcp"
+      - "8953:8953"
+    environment:
+      - UNBOUND_CMD=unbound-control-setup && unbound -d -c /opt/unbound/etc/unbound/unbound.conf
+    entrypoint: /bin/sh -c "unbound-control-setup && unbound -d -c /opt/unbound/etc/unbound/unbound.conf"
+
+  api:
+    build: .
+    container_name: unbound-api
+    depends_on:
+      - unbound
+    volumes:
+      - unbound-certs:/unbound-certs
+    ports:
+      - "8080:8080"
+    environment:
+      - UNBOUND_CONTROL_KEY=/unbound-certs/unbound_control.key
+      - UNBOUND_CONTROL_CERT=/unbound-certs/unbound_control.pem
+    # If your config.yaml needs to reference the certs, use /unbound-certs/ paths
+
+volumes:
+  unbound-certs:

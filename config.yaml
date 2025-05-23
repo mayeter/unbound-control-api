@@ -6,10 +6,10 @@ server:
   key_file: "/etc/unbound-control-api/key.pem"    # Path to TLS private key
 
 unbound:
+  control_key: "/unbound-certs/unbound_control.key"
+  control_cert: "/unbound-certs/unbound_control.pem"
+  control_host: "unbound"
   control_port: 8953
-  control_host: "127.0.0.1"
-  control_key: "/etc/unbound/unbound_control.key"
-  control_cert: "/etc/unbound/unbound_control.pem"
 
 security:
   api_key: "your-secure-api-key-here"
