@@ -2,23 +2,18 @@ package unbound
 
 import (
 	"bufio"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net"
 	"strings"
-	"time"
 
 	"github.com/callMe-Root/unbound-control-api/internal/zonefile"
 )
 
 type Client struct {
-	conn   net.Conn
-	reader *bufio.Reader
-	addr   string
-	config *tls.Config
-	logger *log.Logger
+	socketPath string
+	logger     *log.Logger
 }
 
 // Zone represents a DNS zone configuration
@@ -37,191 +32,55 @@ type ZoneResponse struct {
 	Zones   []Zone `json:"zones,omitempty"`
 }
 
-func NewClient(host string, port int, certFile, keyFile string) (*Client, error) {
-	// Create logger
+func NewClient(socketPath string) (*Client, error) {
 	logger := log.New(log.Writer(), "[UnboundClient] ", log.LstdFlags|log.Lmicroseconds)
-	logger.Printf("Initializing client for %s:%d", host, port)
-
-	// Load client certificate and key
-	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
-	if err != nil {
-		logger.Printf("Failed to load certificates: %v", err)
-		return nil, fmt.Errorf("failed to load client certificate and key: %w", err)
-	}
-	logger.Printf("Successfully loaded certificates from %s and %s", certFile, keyFile)
-
-	// Create TLS config with more lenient settings for containerized Unbound
-	config := &tls.Config{
-		Certificates:       []tls.Certificate{cert},
-		InsecureSkipVerify: true, // Skip certificate verification for containerized setup
-		MinVersion:         tls.VersionTLS12,
-		MaxVersion:         tls.VersionTLS13,
-		ClientAuth:         tls.RequireAndVerifyClientCert,
-		VerifyConnection: func(cs tls.ConnectionState) error {
-			logger.Printf("TLS Connection State:")
-			logger.Printf("  Version: %d", cs.Version)
-			logger.Printf("  HandshakeComplete: %v", cs.HandshakeComplete)
-			logger.Printf("  DidResume: %v", cs.DidResume)
-			logger.Printf("  CipherSuite: %d", cs.CipherSuite)
-			logger.Printf("  NegotiatedProtocol: %s", cs.NegotiatedProtocol)
-			logger.Printf("  ServerName: %s", cs.ServerName)
-			logger.Printf("  PeerCertificates: %d", len(cs.PeerCertificates))
-			return nil
-		},
-	}
-
-	addr := fmt.Sprintf("%s:%d", host, port)
-	logger.Printf("Attempting to connect to %s", addr)
-
-	// Connect to Unbound control interface with a dialer that includes keepalive
-	dialer := &net.Dialer{
-		Timeout:   10 * time.Second,
-		KeepAlive: 30 * time.Second,
-	}
-
-	// First try a plain TCP connection to verify basic connectivity
-	tcpConn, err := dialer.Dial("tcp", addr)
-	if err != nil {
-		logger.Printf("TCP connection failed: %v", err)
-		return nil, fmt.Errorf("failed to establish TCP connection: %w", err)
-	}
-	logger.Printf("TCP connection successful, upgrading to TLS")
-	tcpConn.Close()
-
-	// Now try the TLS connection
-	conn, err := tls.DialWithDialer(dialer, "tcp", addr, config)
-	if err != nil {
-		logger.Printf("TLS connection failed: %v", err)
-		return nil, fmt.Errorf("failed to establish TLS connection: %w", err)
-	}
-
-	// Verify the handshake completed
-	if !conn.ConnectionState().HandshakeComplete {
-		conn.Close()
-		logger.Printf("TLS handshake did not complete")
-		return nil, fmt.Errorf("TLS handshake did not complete")
-	}
-
-	logger.Printf("Successfully connected to %s", addr)
-
-	client := &Client{
-		conn:   conn,
-		reader: bufio.NewReader(conn),
-		addr:   addr,
-		config: config,
-		logger: logger,
-	}
-
-	// Test the connection
-	if err := client.TestConnection(); err != nil {
-		conn.Close()
-		return nil, fmt.Errorf("connection test failed: %w", err)
-	}
-
-	return client, nil
+	logger.Printf("Initializing client for UNIX socket: %s", socketPath)
+	return &Client{
+		socketPath: socketPath,
+		logger:     logger,
+	}, nil
 }
 
 func (c *Client) SendCommand(cmd string) (string, error) {
-	c.logger.Printf("Sending command: %s", cmd)
+	c.logger.Printf("Connecting to Unbound control UNIX socket: %s", c.socketPath)
+	conn, err := net.Dial("unix", c.socketPath)
+	if err != nil {
+		c.logger.Printf("Failed to connect to socket: %v", err)
+		return "", fmt.Errorf("failed to connect to socket: %w", err)
+	}
+	defer conn.Close()
 
-	// Verify connection before sending
-	if !c.VerifyConnection() {
-		c.logger.Printf("Connection appears to be dead, attempting to reconnect")
-		if err := c.reconnect(); err != nil {
-			c.logger.Printf("Reconnection failed: %v", err)
-			return "", fmt.Errorf("failed to reconnect: %w", err)
-		}
+	// Format command with UBCT1  prefix and newline
+	fullCmd := fmt.Sprintf("UBCT1  %s\n", cmd)
+	c.logger.Printf("Sending command: %q", fullCmd)
+	_, err = conn.Write([]byte(fullCmd))
+	if err != nil {
+		c.logger.Printf("Failed to write command: %v", err)
+		return "", fmt.Errorf("failed to write command: %w", err)
 	}
 
-	// Send command with newline
-	if _, err := fmt.Fprintf(c.conn, "%s\n", cmd); err != nil {
-		c.logger.Printf("Failed to send command: %v", err)
-		return "", fmt.Errorf("failed to send command: %w", err)
-	}
-
-	// Ensure the command is sent immediately
-	if err := c.conn.(*tls.Conn).SetWriteDeadline(time.Now().Add(5 * time.Second)); err != nil {
-		c.logger.Printf("Failed to set write deadline: %v", err)
-	}
-
-	c.logger.Printf("Command sent successfully")
-
-	// Read response with timeout
-	c.conn.SetReadDeadline(time.Now().Add(5 * time.Second))
-
-	// For Unbound 1.22, we need to read until we get a blank line or EOF
+	// Read and return the response
+	c.logger.Printf("Reading response...")
 	var response strings.Builder
-	var emptyLines int
-	for {
-		line, err := c.reader.ReadString('\n')
-		if err != nil {
-			if err.Error() == "EOF" {
-				if response.Len() > 0 {
-					// EOF after receiving some data is okay
-					break
-				}
-				// Check if the connection is still alive
-				if !c.VerifyConnection() {
-					c.logger.Printf("Connection died after sending command")
-					return "", fmt.Errorf("connection died after sending command")
-				}
-				c.logger.Printf("Received EOF without any data, connection still alive")
-				// Try to read one more time with a shorter timeout
-				c.conn.SetReadDeadline(time.Now().Add(1 * time.Second))
-				line, err = c.reader.ReadString('\n')
-				if err != nil {
-					c.logger.Printf("Still no data after retry: %v", err)
-					return "", fmt.Errorf("received EOF without any data")
-				}
-				// If we got data, continue processing
-				line = strings.TrimSpace(line)
-				if line != "" {
-					response.WriteString(line)
-					response.WriteString("\n")
-					continue
-				}
-				return "", fmt.Errorf("received EOF without any data")
-			}
-			c.logger.Printf("Failed to read response: %v", err)
-			return "", fmt.Errorf("failed to read response: %w", err)
-		}
-
-		// Trim the line and check if it's empty
-		line = strings.TrimSpace(line)
-		if line == "" {
-			emptyLines++
-			if emptyLines >= 2 {
-				// Two consecutive empty lines indicate end of response
-				break
-			}
-			continue
-		}
-		emptyLines = 0
-
+	scanner := bufio.NewScanner(conn)
+	for scanner.Scan() {
+		line := scanner.Text()
+		c.logger.Printf("Read line: %q", line)
 		response.WriteString(line)
 		response.WriteString("\n")
 	}
-
-	c.conn.SetReadDeadline(time.Time{}) // Reset deadline
-
-	responseStr := strings.TrimSpace(response.String())
-	if responseStr == "" {
-		c.logger.Printf("Received empty response")
-		return "", fmt.Errorf("received empty response")
+	if err := scanner.Err(); err != nil {
+		c.logger.Printf("Error reading response: %v", err)
+		return "", fmt.Errorf("error reading response: %w", err)
 	}
 
-	c.logger.Printf("Received response: %s", responseStr)
-
-	if strings.HasPrefix(responseStr, "error") {
-		c.logger.Printf("Unbound control error: %s", responseStr)
-		return "", fmt.Errorf("unbound control error: %s", responseStr)
-	}
-
-	return responseStr, nil
+	respStr := strings.TrimSpace(response.String())
+	c.logger.Printf("Received response: %s", respStr)
+	return respStr, nil
 }
 
 func (c *Client) Close() error {
-	return c.conn.Close()
+	return nil
 }
 
 // Common commands
@@ -421,7 +280,7 @@ func (c *Client) GetZoneRecord(zoneName string, recordName string, recordType st
 
 // TestConnection verifies that the connection to Unbound is working
 func (c *Client) TestConnection() error {
-	c.logger.Printf("Testing connection to Unbound control interface")
+	c.logger.Printf("Testing connection to Unbound control UNIX socket: %s", c.socketPath)
 
 	// Try to get status
 	response, err := c.SendCommand("status")
@@ -458,53 +317,10 @@ func (c *Client) TestConnection() error {
 
 // VerifyConnection checks if the connection is still alive
 func (c *Client) VerifyConnection() bool {
-	if c.conn == nil {
-		return false
-	}
-
-	// Try to get a one-byte read deadline
-	c.conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
-	one := []byte{0}
-	_, err := c.conn.Read(one)
-	c.conn.SetReadDeadline(time.Time{}) // Reset deadline
-
-	if err != nil {
-		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
-			// Timeout is expected, connection is still alive
-			return true
-		}
-		// Other errors indicate connection is dead
-		return false
-	}
-
 	return true
 }
 
 // reconnect attempts to reestablish the connection
 func (c *Client) reconnect() error {
-	c.logger.Printf("Attempting to reconnect to %s", c.addr)
-
-	// Close existing connection
-	if c.conn != nil {
-		if err := c.conn.Close(); err != nil {
-			c.logger.Printf("Error closing existing connection: %v", err)
-		}
-	}
-
-	// Create new connection with keepalive
-	dialer := &net.Dialer{
-		Timeout:   10 * time.Second,
-		KeepAlive: 30 * time.Second,
-	}
-
-	conn, err := tls.DialWithDialer(dialer, "tcp", c.addr, c.config)
-	if err != nil {
-		c.logger.Printf("Reconnection failed: %v", err)
-		return fmt.Errorf("failed to reconnect: %w", err)
-	}
-
-	c.conn = conn
-	c.reader = bufio.NewReader(conn)
-	c.logger.Printf("Successfully reconnected to %s", c.addr)
 	return nil
 }

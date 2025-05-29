@@ -70,23 +70,12 @@ func (s *Server) reloadConfig() error {
 	s.router.Use(middleware.RateLimit(newCfg.RateLimit.RequestsPerSecond, newCfg.RateLimit.BurstSize))
 
 	// Update Unbound client settings if changed
-	if newCfg.Unbound.ControlHost != s.config.Unbound.ControlHost ||
-		newCfg.Unbound.ControlPort != s.config.Unbound.ControlPort ||
-		newCfg.Unbound.ControlCert != s.config.Unbound.ControlCert ||
-		newCfg.Unbound.ControlKey != s.config.Unbound.ControlKey {
-
+	if newCfg.Unbound.ControlSocket != s.config.Unbound.ControlSocket {
 		// Create new client with updated settings
-		newClient, err := unbound.NewClient(
-			newCfg.Unbound.ControlHost,
-			newCfg.Unbound.ControlPort,
-			newCfg.Unbound.ControlCert,
-			newCfg.Unbound.ControlKey,
-		)
+		newClient, err := unbound.NewClient(newCfg.Unbound.ControlSocket)
 		if err != nil {
 			return fmt.Errorf("failed to create new Unbound client: %w", err)
 		}
-
-		// Close old client and update to new one
 		s.client.Close()
 		s.client = newClient
 	}

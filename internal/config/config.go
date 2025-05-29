@@ -21,10 +21,7 @@ type ServerConfig struct {
 }
 
 type UnboundConfig struct {
-	ControlPort int    `mapstructure:"control_port"`
-	ControlHost string `mapstructure:"control_host"`
-	ControlKey  string `mapstructure:"control_key"`
-	ControlCert string `mapstructure:"control_cert"`
+	ControlSocket string `mapstructure:"control_socket"`
 }
 
 type SecurityConfig struct {

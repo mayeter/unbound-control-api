@@ -22,12 +22,7 @@ func main() {
 	logger.Initialize(cfg.Logging.Level, cfg.Logging.UseSyslog, cfg.Logging.AppName)
 
 	// Create Unbound client
-	client, err := unbound.NewClient(
-		cfg.Unbound.ControlHost,
-		cfg.Unbound.ControlPort,
-		cfg.Unbound.ControlCert,
-		cfg.Unbound.ControlKey,
-	)
+	client, err := unbound.NewClient(cfg.Unbound.ControlSocket)
 	if err != nil {
 		log.Fatalf("Failed to create Unbound client: %v", err)
 	}

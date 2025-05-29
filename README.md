@@ -4,35 +4,44 @@ A REST API for managing Unbound DNS resolver remotely. This project provides a s
 
 ## Features
 
-- Direct communication with Unbound's control interface
+- Direct communication with Unbound's control interface (via UNIX socket)
 - RESTful API endpoints for common operations
 - Secure authentication and authorization
 - Support for all Unbound control commands
 - Easy to deploy and configure
 - Hot-reloadable configuration
-- TLS certificate reloading
+- TLS certificate reloading (for the API, not Unbound)
 - Zone management capabilities
 - Zone file management for authoritative DNS
 
 ## Prerequisites
 
-- Go 1.17 or later
-- Unbound DNS resolver
-- Access to Unbound's control interface (default port: 8953)
+- Go 1.17 or later (for development/building)
+- Docker or Podman (for running the stack)
+- Unbound DNS resolver (included in the container)
 
-## Installation
+## Quick Start (Docker)
+
+To run the API and Unbound together locally:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/unbound-control-api.git
-cd unbound-control-api
+git clone https://github.com/mayeter/unbound-control-api.git
+cd unbound-control-api/files
 
-# Build the project
-go build -o unbound-control-api ./cmd/api
-
-# Run the server
-./unbound-control-api
+# Build and run the stack
+docker-compose up --build
 ```
+
+- This will build a single container image with both Unbound and the API.
+- The API will be available on port 8080.
+- Unbound and the API communicate via a UNIX socket (`/opt/unbound/unbound.sock`).
+
+### **Note: UNIX Socket Only**
+- This API **only supports controlling Unbound via a UNIX socket**.
+- **Remote-control over TCP is NOT supported** in this version.
+- This means the API and Unbound must run on the same machine/container.
+- No TLS/certificates are needed for Unbound control (the socket file permissions provide security).
 
 ## Configuration
 
@@ -47,10 +56,7 @@ server:
   key_file: "/path/to/key.pem"
 
 unbound:
-  control_port: 8953
-  control_host: "127.0.0.1"
-  control_key: "/path/to/control.key"
-  control_cert: "/path/to/control.cert"
+  control_socket: "/opt/unbound/unbound.sock"
 
 security:
   api_key: "your-secure-api-key"
@@ -72,16 +78,11 @@ The API supports hot-reloading of configuration using the SIGHUP signal. The fol
 - **Security Settings**:
   - API key (`security.api_key`)
   - TLS certificates (`server.cert_file`, `server.key_file`)
-
 - **Rate Limiting**:
   - Requests per second (`rate_limit.requests_per_second`)
   - Burst size (`rate_limit.burst_size`)
-
 - **Unbound Connection Settings**:
-  - Control host (`unbound.control_host`)
-  - Control port (`unbound.control_port`)
-  - Control certificate (`unbound.control_cert`)
-  - Control key (`unbound.control_key`)
+  - Control socket path (`unbound.control_socket`)
 
 To reload the configuration, send a SIGHUP signal to the process:
 ```bash
@@ -198,7 +199,7 @@ Note: The following settings require a server restart to take effect:
 ## Security
 
 - All API endpoints require authentication using an API key
-- Communication with Unbound uses TLS encryption
+- Communication with Unbound uses a UNIX socket (no TCP, no TLS)
 - Rate limiting to prevent abuse
 - Input validation for all commands
 
