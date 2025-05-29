@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  unbound:
+    build:
+      context: ../
+      dockerfile: ./files/Dockerfile
+    container_name: unbound
+    volumes:
+      - ./unbound.conf:/opt/unbound/etc/unbound/unbound.conf:Z
+    ports:
+      - "53553:53/udp"
+      - "53553:53/tcp"
+      - "8953:8953"
+      - "8080:8080"
+    entrypoint: [ "/opt/unbound/wait-for-unbound.sh" ]

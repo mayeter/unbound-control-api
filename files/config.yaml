@@ -1,0 +1,21 @@
+server:
+  port: 8080
+  host: "0.0.0.0"
+  use_tls: false  # Enable TLS for the API
+  cert_file: "/etc/unbound-control-api/cert.pem"  # Path to TLS certificate
+  key_file: "/etc/unbound-control-api/key.pem"    # Path to TLS private key
+
+unbound:
+  control_socket: "/opt/unbound/unbound.sock"
+
+security:
+  api_key: "your-secure-api-key-here"
+
+rate_limit:
+  requests_per_second: 10.0  # Allow 10 requests per second
+  burst_size: 20.0          # Allow bursts of up to 20 requests
+
+logging:
+  level: "debug"     # Available levels: debug, info, warn, error, fatal
+  use_syslog: true   # Send logs to syslog
+  app_name: "unbound-control-api"  # Application name in syslog 
