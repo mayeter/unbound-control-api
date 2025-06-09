@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/callMe-Root/unbound-control-api/internal/response"
 	"github.com/callMe-Root/unbound-control-api/internal/unbound"
 )
 
@@ -17,12 +18,6 @@ func NewUnboundHandler(client *unbound.Client) *UnboundHandler {
 	}
 }
 
-type Response struct {
-	Success bool        `json:"success"`
-	Data    interface{} `json:"data,omitempty"`
-	Error   string      `json:"error,omitempty"`
-}
-
 func (h *UnboundHandler) Status(w http.ResponseWriter, r *http.Request) {
 	status, err := h.client.Status()
 	if err != nil {
@@ -30,22 +25,22 @@ func (h *UnboundHandler) Status(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondWithJSON(w, http.StatusOK, Response{
+	respondWithJSON(w, http.StatusOK, response.CommonResponse{
 		Success: true,
 		Data:    status,
 	})
 }
 
 func (h *UnboundHandler) Reload(w http.ResponseWriter, r *http.Request) {
-	response, err := h.client.Reload()
+	err := h.client.Reload()
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	respondWithJSON(w, http.StatusOK, Response{
+	respondWithJSON(w, http.StatusOK, response.CommonResponse{
 		Success: true,
-		Data:    response,
+		Data:    "Configuration reloaded successfully",
 	})
 }
 
@@ -55,15 +50,16 @@ func (h *UnboundHandler) Flush(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, "Domain is required")
 		return
 	}
-	response, err := h.client.Flush(domain)
+
+	err := h.client.Flush(domain)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	respondWithJSON(w, http.StatusOK, Response{
+	respondWithJSON(w, http.StatusOK, response.CommonResponse{
 		Success: true,
-		Data:    response,
+		Data:    "Cache flushed successfully",
 	})
 }
 
@@ -74,16 +70,19 @@ func (h *UnboundHandler) Stats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondWithJSON(w, http.StatusOK, Response{
+	respondWithJSON(w, http.StatusOK, response.CommonResponse{
 		Success: true,
 		Data:    stats,
 	})
 }
 
 func respondWithError(w http.ResponseWriter, code int, message string) {
-	respondWithJSON(w, code, Response{
+	respondWithJSON(w, code, response.CommonResponse{
 		Success: false,
-		Error:   message,
+		Error: &response.Error{
+			Code:    "INTERNAL_ERROR",
+			Message: message,
+		},
 	})
 }
 

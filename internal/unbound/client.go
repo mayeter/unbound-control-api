@@ -2,34 +2,17 @@ package unbound
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net"
 	"strings"
 
-	"github.com/callMe-Root/unbound-control-api/internal/zonefile"
+	"github.com/callMe-Root/unbound-control-api/internal/response"
 )
 
 type Client struct {
 	socketPath string
 	logger     *log.Logger
-}
-
-// Zone represents a DNS zone configuration
-type Zone struct {
-	Name     string   `json:"name"`
-	Type     string   `json:"type"` // primary, secondary, stub, forward
-	File     string   `json:"file,omitempty"`
-	Masters  []string `json:"masters,omitempty"`
-	Forwards []string `json:"forwards,omitempty"`
-}
-
-// ZoneResponse represents the response from zone-related commands
-type ZoneResponse struct {
-	Success bool   `json:"success"`
-	Message string `json:"message,omitempty"`
-	Zones   []Zone `json:"zones,omitempty"`
 }
 
 func NewClient(socketPath string) (*Client, error) {
@@ -83,195 +66,41 @@ func (c *Client) Close() error {
 	return nil
 }
 
-// Common commands
-func (c *Client) Status() (string, error) {
-	return c.SendCommand("status")
-}
-
-func (c *Client) Reload() (string, error) {
-	return c.SendCommand("reload")
-}
-
-func (c *Client) Flush(domain string) (string, error) {
-	return c.SendCommand(fmt.Sprintf("flush %s", domain))
-}
-
-func (c *Client) Stats() (string, error) {
-	return c.SendCommand("stats")
-}
-
-// Zone management commands
-func (c *Client) ListZones() ([]Zone, error) {
-	response, err := c.SendCommand("list_zones")
+// Status returns the server status
+func (c *Client) Status() (*response.StatusResponse, error) {
+	raw, err := c.SendCommand("status")
 	if err != nil {
-		return nil, fmt.Errorf("failed to list zones: %w", err)
+		return nil, fmt.Errorf("failed to get status: %w", err)
 	}
-
-	// Parse the response into Zone structs
-	var zones []Zone
-	if err := json.Unmarshal([]byte(response), &zones); err != nil {
-		return nil, fmt.Errorf("failed to parse zones: %w", err)
-	}
-
-	return zones, nil
+	return response.ParseStatusResponse(raw)
 }
 
-func (c *Client) AddZone(zone Zone) error {
-	// Convert zone to JSON
-	zoneJSON, err := json.Marshal(zone)
+// Stats returns the server statistics
+func (c *Client) Stats() (*response.StatsResponse, error) {
+	raw, err := c.SendCommand("stats")
 	if err != nil {
-		return fmt.Errorf("failed to marshal zone: %w", err)
+		return nil, fmt.Errorf("failed to get stats: %w", err)
 	}
+	return response.ParseStatsResponse(raw)
+}
 
-	// Send add_zone command with zone data
-	cmd := fmt.Sprintf("add_zone %s", string(zoneJSON))
-	_, err = c.SendCommand(cmd)
+// Reload reloads the server configuration
+func (c *Client) Reload() error {
+	_, err := c.SendCommand("reload")
 	if err != nil {
-		return fmt.Errorf("failed to add zone: %w", err)
+		return fmt.Errorf("failed to reload: %w", err)
 	}
-
 	return nil
 }
 
-func (c *Client) RemoveZone(zoneName string) error {
-	cmd := fmt.Sprintf("remove_zone %s", zoneName)
+// Flush flushes the cache for a domain
+func (c *Client) Flush(domain string) error {
+	cmd := fmt.Sprintf("flush %s", domain)
 	_, err := c.SendCommand(cmd)
 	if err != nil {
-		return fmt.Errorf("failed to remove zone: %w", err)
+		return fmt.Errorf("failed to flush domain %s: %w", domain, err)
 	}
-
 	return nil
-}
-
-func (c *Client) UpdateZone(zone Zone) error {
-	// Convert zone to JSON
-	zoneJSON, err := json.Marshal(zone)
-	if err != nil {
-		return fmt.Errorf("failed to marshal zone: %w", err)
-	}
-
-	// Send update_zone command with zone data
-	cmd := fmt.Sprintf("update_zone %s", string(zoneJSON))
-	_, err = c.SendCommand(cmd)
-	if err != nil {
-		return fmt.Errorf("failed to update zone: %w", err)
-	}
-
-	return nil
-}
-
-func (c *Client) GetZone(zoneName string) (*Zone, error) {
-	cmd := fmt.Sprintf("get_zone %s", zoneName)
-	response, err := c.SendCommand(cmd)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get zone: %w", err)
-	}
-
-	var zone Zone
-	if err := json.Unmarshal([]byte(response), &zone); err != nil {
-		return nil, fmt.Errorf("failed to parse zone: %w", err)
-	}
-
-	return &zone, nil
-}
-
-// Zone file management commands
-func (c *Client) GetZoneFile(zoneName string) (*zonefile.ZoneFile, error) {
-	// Get zone configuration to find the file path
-	zone, err := c.GetZone(zoneName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get zone configuration: %w", err)
-	}
-
-	if zone.File == "" {
-		return nil, fmt.Errorf("zone %s does not have a file path configured", zoneName)
-	}
-
-	// Load zone file from disk
-	return zonefile.LoadZoneFile(zone.File)
-}
-
-func (c *Client) UpdateZoneFile(zoneName string, zoneFile *zonefile.ZoneFile) error {
-	// Get zone configuration to find the file path
-	zone, err := c.GetZone(zoneName)
-	if err != nil {
-		return fmt.Errorf("failed to get zone configuration: %w", err)
-	}
-
-	if zone.File == "" {
-		return fmt.Errorf("zone %s does not have a file path configured", zoneName)
-	}
-
-	// Save zone file to disk
-	if err := zonefile.SaveZoneFile(zone.File, zoneFile); err != nil {
-		return fmt.Errorf("failed to save zone file: %w", err)
-	}
-
-	// Reload Unbound to apply changes
-	_, err = c.Reload()
-	if err != nil {
-		return fmt.Errorf("failed to reload Unbound after zone file update: %w", err)
-	}
-
-	return nil
-}
-
-func (c *Client) AddZoneRecord(zoneName string, record zonefile.Record) error {
-	// Get current zone file
-	zoneFile, err := c.GetZoneFile(zoneName)
-	if err != nil {
-		return fmt.Errorf("failed to get zone file: %w", err)
-	}
-
-	// Add record
-	zoneFile.AddRecord(record)
-
-	// Save updated zone file
-	return c.UpdateZoneFile(zoneName, zoneFile)
-}
-
-func (c *Client) RemoveZoneRecord(zoneName string, recordName string, recordType string) error {
-	// Get current zone file
-	zoneFile, err := c.GetZoneFile(zoneName)
-	if err != nil {
-		return fmt.Errorf("failed to get zone file: %w", err)
-	}
-
-	// Remove record
-	zoneFile.RemoveRecord(recordName, recordType)
-
-	// Save updated zone file
-	return c.UpdateZoneFile(zoneName, zoneFile)
-}
-
-func (c *Client) UpdateZoneRecord(zoneName string, record zonefile.Record) error {
-	// Get current zone file
-	zoneFile, err := c.GetZoneFile(zoneName)
-	if err != nil {
-		return fmt.Errorf("failed to get zone file: %w", err)
-	}
-
-	// Update record
-	zoneFile.UpdateRecord(record)
-
-	// Save updated zone file
-	return c.UpdateZoneFile(zoneName, zoneFile)
-}
-
-func (c *Client) GetZoneRecord(zoneName string, recordName string, recordType string) (*zonefile.Record, error) {
-	// Get current zone file
-	zoneFile, err := c.GetZoneFile(zoneName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get zone file: %w", err)
-	}
-
-	// Get record
-	record := zoneFile.GetRecord(recordName, recordType)
-	if record == nil {
-		return nil, fmt.Errorf("record not found")
-	}
-
-	return record, nil
 }
 
 // TestConnection verifies that the connection to Unbound is working
@@ -279,35 +108,13 @@ func (c *Client) TestConnection() error {
 	c.logger.Printf("Testing connection to Unbound control UNIX socket: %s", c.socketPath)
 
 	// Try to get status
-	response, err := c.SendCommand("status")
+	status, err := c.Status()
 	if err != nil {
 		c.logger.Printf("Connection test failed: %v", err)
 		return fmt.Errorf("connection test failed: %w", err)
 	}
 
-	// Parse version from response
-	version := ""
-	for _, line := range strings.Split(response, "\n") {
-		if strings.HasPrefix(line, "version:") {
-			version = strings.TrimSpace(strings.TrimPrefix(line, "version:"))
-			break
-		}
-	}
-
-	if version == "" {
-		c.logger.Printf("Could not determine Unbound version from response: %s", response)
-		return fmt.Errorf("could not determine Unbound version")
-	}
-
-	c.logger.Printf("Connected to Unbound version: %s", version)
-
-	// Verify response format for Unbound 1.22
-	if !strings.Contains(response, "version:") || !strings.Contains(response, "threads:") {
-		c.logger.Printf("Unexpected response format: %s", response)
-		return fmt.Errorf("unexpected response format: %s", response)
-	}
-
-	c.logger.Printf("Connection test successful: %s", response)
+	c.logger.Printf("Connected to Unbound version: %s", status.Version)
 	return nil
 }
 

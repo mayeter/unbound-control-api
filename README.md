@@ -81,6 +81,129 @@ A REST API for managing Unbound DNS resolver remotely. This project provides a s
   - [ ] Best practices
   - [ ] Integration guides
 
+## API Response Structure
+
+The API converts Unbound's text-based responses into structured JSON objects for better usability and consistency.
+
+### Common Response Format
+```json
+{
+  "success": true,
+  "data": {
+    // Command-specific data
+  },
+  "error": null
+}
+```
+
+### Command-Specific Responses
+
+#### Status Response
+```json
+{
+  "success": true,
+  "data": {
+    "version": "1.22.0",
+    "verbosity": 1,
+    "threads": 4,
+    "modules": ["validator", "iterator"],
+    "uptime": {
+      "seconds": 123,
+      "formatted": "2m 3s"
+    },
+    "options": {
+      "control": "open"
+    }
+  }
+}
+```
+
+#### Statistics Response
+```json
+{
+  "success": true,
+  "data": {
+    "queries": {
+      "total": 1234,
+      "ip_ratelimited": 0
+    },
+    "cache": {
+      "hits": 567,
+      "misses": 667,
+      "prefetch": 0,
+      "zero_ttl": 0
+    },
+    "recursion": {
+      "replies": 667,
+      "time": {
+        "average": 0.012345,
+        "median": 0.01
+      }
+    },
+    "request_list": {
+      "average": 0.5,
+      "max": 1,
+      "overwritten": 0,
+      "exceeded": 0,
+      "current": {
+        "all": 0,
+        "user": 0
+      }
+    },
+    "tcp_usage": 0
+  }
+}
+```
+
+
+#### Error Response
+```json
+{
+  "success": false,
+  "data": null,
+  "error": {
+    "code": "INVALID_COMMAND",
+    "message": "Unknown command: invalid_command",
+    "details": "Available commands: status, stats, list_local_zones, ..."
+  }
+}
+```
+
+### Response Types
+
+1. **Status Information**
+   - Server status
+   - Module status
+   - Configuration status
+
+2. **Statistics**
+   - Query statistics
+   - Cache statistics
+   - Recursion statistics
+   - Resource usage
+
+3. **Operation Results**
+   - Command success/failure
+   - Operation details
+   - Error information
+
+### Implementation Plan
+
+1. **Phase 1: Basic Response Structures**
+   - [ ] Define Go structs for each response type
+   - [ ] Implement response parsers for basic commands
+   - [ ] Add response validation
+
+2. **Phase 2: Enhanced Response Features**
+   - [ ] Add formatted values (e.g., human-readable uptime)
+   - [ ] Implement response caching
+   - [ ] Add response compression
+
+3. **Phase 3: Advanced Response Features**
+   - [ ] Add response filtering
+   - [ ] Implement response pagination
+   - [ ] Add response metadata
+
 ## Prerequisites
 
 - Go 1.17 or later (for development/building)
@@ -168,99 +291,6 @@ Note: The following settings require a server restart to take effect:
 - `POST /api/v1/reload` - Reload Unbound configuration
 - `POST /api/v1/flush` - Flush DNS cache
 - `GET /api/v1/stats` - Get Unbound statistics
-
-### Zone Management
-- `GET /api/v1/zones` - List all configured zones
-- `POST /api/v1/zones` - Add a new zone
-- `GET /api/v1/zones/{name}` - Get zone details
-- `PUT /api/v1/zones/{name}` - Update zone configuration
-- `DELETE /api/v1/zones/{name}` - Remove a zone
-
-#### Zone Configuration Example
-```json
-{
-  "name": "example.com",
-  "type": "primary",
-  "file": "/etc/unbound/zones/example.com.zone"
-}
-```
-
-```json
-{
-  "name": "example.org",
-  "type": "secondary",
-  "masters": ["192.168.1.10", "192.168.1.11"]
-}
-```
-
-```json
-{
-  "name": "example.net",
-  "type": "forward",
-  "forwards": ["8.8.8.8", "8.8.4.4"]
-}
-```
-
-### Zone File Management
-- `GET /api/v1/zones/{name}/file` - Get zone file content
-- `PUT /api/v1/zones/{name}/file` - Update entire zone file
-- `POST /api/v1/zones/{name}/records` - Add a new record
-- `GET /api/v1/zones/{name}/records/{recordName}/{recordType}` - Get record details
-- `PUT /api/v1/zones/{name}/records/{recordName}/{recordType}` - Update record
-- `DELETE /api/v1/zones/{name}/records/{recordName}/{recordType}` - Remove record
-
-#### Zone File Example
-```json
-{
-  "name": "example.com",
-  "records": [
-    {
-      "name": "@",
-      "ttl": 3600,
-      "class": "IN",
-      "type": "SOA",
-      "rdata": "ns1.example.com. admin.example.com. 2024031501 7200 3600 1209600 3600",
-      "comments": "Start of Authority"
-    },
-    {
-      "name": "@",
-      "ttl": 3600,
-      "class": "IN",
-      "type": "NS",
-      "rdata": "ns1.example.com.",
-      "comments": "Primary nameserver"
-    },
-    {
-      "name": "@",
-      "ttl": 3600,
-      "class": "IN",
-      "type": "A",
-      "rdata": "192.168.1.10",
-      "comments": "Main IP address"
-    },
-    {
-      "name": "www",
-      "ttl": 3600,
-      "class": "IN",
-      "type": "CNAME",
-      "rdata": "@",
-      "comments": "WWW subdomain"
-    }
-  ]
-}
-```
-
-#### Record Example
-```json
-{
-  "name": "mail",
-  "ttl": 3600,
-  "class": "IN",
-  "type": "MX",
-  "rdata": "10 mail.example.com.",
-  "comments": "Mail server"
-}
-```
 
 ## Security
 

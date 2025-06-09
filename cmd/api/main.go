@@ -41,8 +41,6 @@ func main() {
 
 	// Create handlers
 	unboundHandler := handler.NewUnboundHandler(client)
-	zoneHandler := handler.NewZoneHandler(client)
-	zoneFileHandler := handler.NewZoneFileHandler(client)
 
 	// API routes with authentication and rate limiting
 	api := srv.Router().PathPrefix("/api/v1").Subrouter()
@@ -54,21 +52,6 @@ func main() {
 	api.HandleFunc("/reload", unboundHandler.Reload).Methods("POST")
 	api.HandleFunc("/flush", unboundHandler.Flush).Methods("DELETE")
 	api.HandleFunc("/stats", unboundHandler.Stats).Methods("GET")
-
-	// Zone management routes
-	api.HandleFunc("/zones", zoneHandler.ListZones).Methods("GET")
-	api.HandleFunc("/zones", zoneHandler.AddZone).Methods("POST")
-	api.HandleFunc("/zones/{name}", zoneHandler.GetZone).Methods("GET")
-	api.HandleFunc("/zones/{name}", zoneHandler.UpdateZone).Methods("PUT")
-	api.HandleFunc("/zones/{name}", zoneHandler.RemoveZone).Methods("DELETE")
-
-	// Zone file management routes
-	api.HandleFunc("/zones/{name}/file", zoneFileHandler.GetZoneFile).Methods("GET")
-	api.HandleFunc("/zones/{name}/file", zoneFileHandler.UpdateZoneFile).Methods("PUT")
-	api.HandleFunc("/zones/{name}/records", zoneFileHandler.AddZoneRecord).Methods("POST")
-	api.HandleFunc("/zones/{name}/records/{recordName}/{recordType}", zoneFileHandler.GetZoneRecord).Methods("GET")
-	api.HandleFunc("/zones/{name}/records/{recordName}/{recordType}", zoneFileHandler.UpdateZoneRecord).Methods("PUT")
-	api.HandleFunc("/zones/{name}/records/{recordName}/{recordType}", zoneFileHandler.RemoveZoneRecord).Methods("DELETE")
 
 	// Start server
 	if err := srv.Start(); err != nil {
