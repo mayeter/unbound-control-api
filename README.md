@@ -14,6 +14,73 @@ A REST API for managing Unbound DNS resolver remotely. This project provides a s
 - Zone management capabilities
 - Zone file management for authoritative DNS
 
+## Roadmap
+
+### Phase 1: Core Unbound Control Interface (Current)
+- [x] Basic Unbound control commands (status, reload, flush, stats)
+- [x] UNIX socket communication
+- [x] API authentication and rate limiting
+- [ ] Complete mapping of all unbound-control commands:
+  - [ ] List and manage local zones
+  - [ ] List and manage forward zones
+  - [ ] List and manage stub zones
+  - [ ] Manage local data records
+  - [ ] Cache management commands
+  - [ ] Module management commands
+  - [ ] DNSSEC management commands
+
+### Phase 2: Advanced Zone Management
+- [ ] Zone File Management:
+  - [ ] Create and manage zone files in BIND format
+  - [ ] Validate zone file syntax
+  - [ ] Support for SOA record management
+  - [ ] Support for all common record types (A, AAAA, MX, CNAME, etc.)
+  - [ ] Zone file import/export
+  - [ ] Zone file versioning and rollback
+
+- [ ] Auth Zone Support:
+  - [ ] Primary (master) zone configuration
+  - [ ] Secondary (slave) zone configuration
+  - [ ] Zone transfer (AXFR/IXFR) management
+  - [ ] DNSSEC key management
+  - [ ] Zone signing and validation
+
+### Phase 3: Enhanced Features
+- [ ] Zone Templates:
+  - [ ] Predefined zone configurations
+  - [ ] Common record patterns
+  - [ ] Bulk zone creation
+
+- [ ] Zone Monitoring:
+  - [ ] Zone health checks
+  - [ ] Record validation
+  - [ ] DNSSEC status monitoring
+  - [ ] Zone transfer status
+
+- [ ] Advanced Security:
+  - [ ] Role-based access control
+  - [ ] Audit logging
+  - [ ] Zone access policies
+  - [ ] API key management
+
+### Phase 4: Integration and Automation
+- [ ] Webhook Support:
+  - [ ] Zone change notifications
+  - [ ] Health check alerts
+  - [ ] Integration with external systems
+
+- [ ] Automation Tools:
+  - [ ] Zone deployment automation
+  - [ ] Record update automation
+  - [ ] Bulk operations API
+  - [ ] Scheduled tasks
+
+- [ ] Documentation and Examples:
+  - [ ] API usage examples
+  - [ ] Common use cases
+  - [ ] Best practices
+  - [ ] Integration guides
+
 ## Prerequisites
 
 - Go 1.17 or later (for development/building)
