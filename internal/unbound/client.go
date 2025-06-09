@@ -92,16 +92,12 @@ func (c *Client) Reload() (string, error) {
 	return c.SendCommand("reload")
 }
 
-func (c *Client) Flush() (string, error) {
-	return c.SendCommand("flush")
+func (c *Client) Flush(domain string) (string, error) {
+	return c.SendCommand(fmt.Sprintf("flush %s", domain))
 }
 
 func (c *Client) Stats() (string, error) {
 	return c.SendCommand("stats")
-}
-
-func (c *Client) Info() (string, error) {
-	return c.SendCommand("info")
 }
 
 // Zone management commands

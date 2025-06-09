@@ -101,7 +101,6 @@ Note: The following settings require a server restart to take effect:
 - `POST /api/v1/reload` - Reload Unbound configuration
 - `POST /api/v1/flush` - Flush DNS cache
 - `GET /api/v1/stats` - Get Unbound statistics
-- `GET /api/v1/info` - Get detailed server information
 
 ### Zone Management
 - `GET /api/v1/zones` - List all configured zones

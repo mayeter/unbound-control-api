@@ -52,9 +52,8 @@ func main() {
 	// Unbound control routes
 	api.HandleFunc("/status", unboundHandler.Status).Methods("GET")
 	api.HandleFunc("/reload", unboundHandler.Reload).Methods("POST")
-	api.HandleFunc("/flush", unboundHandler.Flush).Methods("POST")
+	api.HandleFunc("/flush", unboundHandler.Flush).Methods("DELETE")
 	api.HandleFunc("/stats", unboundHandler.Stats).Methods("GET")
-	api.HandleFunc("/info", unboundHandler.Info).Methods("GET")
 
 	// Zone management routes
 	api.HandleFunc("/zones", zoneHandler.ListZones).Methods("GET")

@@ -50,7 +50,12 @@ func (h *UnboundHandler) Reload(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UnboundHandler) Flush(w http.ResponseWriter, r *http.Request) {
-	response, err := h.client.Flush()
+	domain := r.URL.Query().Get("domain")
+	if domain == "" {
+		respondWithError(w, http.StatusBadRequest, "Domain is required")
+		return
+	}
+	response, err := h.client.Flush(domain)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -72,19 +77,6 @@ func (h *UnboundHandler) Stats(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, Response{
 		Success: true,
 		Data:    stats,
-	})
-}
-
-func (h *UnboundHandler) Info(w http.ResponseWriter, r *http.Request) {
-	info, err := h.client.Info()
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	respondWithJSON(w, http.StatusOK, Response{
-		Success: true,
-		Data:    info,
 	})
 }
 
